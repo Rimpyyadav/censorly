@@ -43,7 +43,7 @@ class StreamBlurApp:
         self.ocr_enabled = True      # Default OCR on
         self.vcam_enabled = False
         self.show_detection_boxes = False
-        self.show_preview = False
+        self.show_preview = True
         self.running = True
         
         # Performance

@@ -1,6 +1,5 @@
 """
-Application Runner
-Runs StreamBlur processing in separate thread
+Application Runner - Fixed recursion
 """
 
 import threading
@@ -16,6 +15,7 @@ class AppRunner:
         self.streamblur = streamblur_app
         self.thread = None
         self.running = False
+        self.preview_window_name = 'StreamBlur - Preview'
     
     def start(self):
         """Start processing thread"""
@@ -31,7 +31,7 @@ class AppRunner:
         """Main processing loop"""
         import cv2
         
-        # Create NEW screen capture for this thread (mss is thread-local)
+        # Create screen capture for this thread
         sct = mss.mss()
         monitor = sct.monitors[1]
         
@@ -39,9 +39,12 @@ class AppRunner:
         frame_count = 0
         fps_start = time.time()
         
+        # Position preview window off to the side initially
+        preview_positioned = False
+        
         try:
             while self.running and self.streamblur.running:
-                # Capture (using thread-local mss instance)
+                # Capture
                 screenshot = sct.grab(monitor)
                 frame = np.array(screenshot)
                 frame = cv2.cvtColor(frame, cv2.COLOR_BGRA2BGR)
@@ -51,7 +54,7 @@ class AppRunner:
                 elapsed = time.time() - fps_start
                 if elapsed > 1:
                     fps = frame_count / elapsed
-                    self.streamblur.capturer.fps = fps  # Update FPS for display
+                    self.streamblur.capturer.fps = fps
                     frame_count = 0
                     fps_start = time.time()
                 
@@ -78,9 +81,19 @@ class AppRunner:
                 if self.streamblur.vcam_enabled:
                     self.streamblur.vcam.send_frame(output_frame)
                 
-                # Preview
+                # Preview (with TOPMOST flag to prevent recursion)
                 if self.streamblur.show_preview:
-                    cv2.imshow('StreamBlur - Preview', display_frame)
+                    cv2.imshow(self.preview_window_name, display_frame)
+                    
+                    # Position window only once
+                    if not preview_positioned:
+                        cv2.setWindowProperty(self.preview_window_name, 
+                                            cv2.WND_PROP_TOPMOST, 1)
+                        # Move to top-right corner
+                        cv2.moveWindow(self.preview_window_name, 
+                                      monitor['width'] - 640, 0)
+                        preview_positioned = True
+                    
                     key = cv2.waitKey(1) & 0xFF
                     if key == ord('q'):
                         self.stop()
