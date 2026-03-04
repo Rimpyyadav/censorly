@@ -1,6 +1,5 @@
 """
-Pattern Matcher Module
-Detects sensitive information using regex patterns
+Pattern Matcher Module - Enhanced
 """
 
 import re
@@ -10,14 +9,40 @@ from typing import List, Dict, Tuple
 class PatternMatcher:
     """Detects sensitive patterns in text"""
     
-    # Regex patterns for sensitive information
+    # Enhanced regex patterns
     PATTERNS = {
+        # Email - more permissive
         'email': r'\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b',
-        'phone': r'\b(\+\d{1,2}\s?)?\(?\d{3}\)?[\s.-]?\d{3}[\s.-]?\d{4}\b',
+        
+        # Phone - multiple formats
+        'phone': r'\b(\+?\d{1,3}[-.\s]?)?\(?\d{3}\)?[-.\s]?\d{3}[-.\s]?\d{4}\b',
+        
+        # Credit card - with or without spaces/dashes
         'credit_card': r'\b\d{4}[\s-]?\d{4}[\s-]?\d{4}[\s-]?\d{4}\b',
+        
+        # SSN
         'ssn': r'\b\d{3}-\d{2}-\d{4}\b',
+        
+        # IP Address
         'ip_address': r'\b\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}\b',
+        
+        # API Keys (long alphanumeric strings)
         'api_key': r'\b[A-Za-z0-9_-]{32,}\b',
+        
+        # NEW: Any sequence that looks like a password/key
+        'secret_key': r'\b[A-Za-z0-9!@#$%^&*()_+\-=]{16,}\b',
+        
+        # NEW: Credit card CVV
+        'cvv': r'\b\d{3,4}\b',
+        
+        # NEW: Dates that might be sensitive (DOB)
+        'date': r'\b\d{1,2}[/-]\d{1,2}[/-]\d{2,4}\b',
+        
+        # NEW: Account numbers
+        'account_number': r'\b\d{8,17}\b',
+        
+        # NEW: Zip codes
+        'zip_code': r'\b\d{5}(-\d{4})?\b',
     }
     
     def __init__(self, enabled_patterns=None):
@@ -29,7 +54,11 @@ class PatternMatcher:
                             (None = all patterns)
         """
         if enabled_patterns is None:
-            self.enabled_patterns = list(self.PATTERNS.keys())
+            # Enable most common patterns by default
+            self.enabled_patterns = [
+                'email', 'phone', 'credit_card', 'ssn', 
+                'ip_address', 'api_key', 'account_number'
+            ]
         else:
             self.enabled_patterns = enabled_patterns
         
@@ -54,9 +83,17 @@ class PatternMatcher:
                 matches = re.findall(regex, text, re.IGNORECASE)
                 
                 if matches:
+                    # Clean up tuples from regex groups
+                    clean_matches = []
+                    for match in matches:
+                        if isinstance(match, tuple):
+                            # Take the full match
+                            match = ''.join(match)
+                        clean_matches.append(match)
+                    
                     # Remove duplicates
-                    matches = list(set(matches))
-                    results[pattern_name] = matches
+                    clean_matches = list(set(clean_matches))
+                    results[pattern_name] = clean_matches
         
         return results
     
@@ -96,6 +133,16 @@ class PatternMatcher:
         Returns:
             True if sensitive info found
         """
+        # Quick check for common patterns first
+        if '@' in text:  # Likely email
+            return True
+        
+        # Check if it's mostly numbers (could be phone/card/account)
+        digit_ratio = sum(c.isdigit() for c in text) / max(len(text), 1)
+        if digit_ratio > 0.5 and len(text) >= 8:
+            return True
+        
+        # Full pattern check
         results = self.find_patterns(text)
         return len(results) > 0
     

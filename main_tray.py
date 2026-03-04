@@ -48,7 +48,7 @@ class StreamBlurApp:
         
         # Performance
         self.frame_count = 0
-        self.ocr_interval = 5
+        self.ocr_interval = 2
         self.sensitive_regions = []
         
         # Stats
