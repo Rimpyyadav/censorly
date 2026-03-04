@@ -43,6 +43,9 @@ class PatternMatcher:
         
         # NEW: Zip codes
         'zip_code': r'\b\d{5}(-\d{4})?\b',
+
+        'password_field': r'\b(password|passwd|pwd|pass)\b',
+'username_field': r'\b(username|user|login|email)\b',
     }
     
     def __init__(self, enabled_patterns=None):

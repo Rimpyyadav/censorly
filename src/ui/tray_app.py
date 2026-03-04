@@ -15,16 +15,17 @@ import os
 class TrayApplication(QSystemTrayIcon):
     """System tray application"""
     
-    def __init__(self, streamblur_app):
-        # Create application
-        self.qt_app = QApplication(sys.argv)
+    def __init__(self, streamblur_app, qt_app):  # ← Add qt_app parameter
+        # Don't create QApplication here - use the one passed in
+        self.qt_app = qt_app
         
-        # Create icon (we'll use a simple colored square for now)
+        # Create icon
         icon = self.create_icon()
         super().__init__(icon, self.qt_app)
         
         self.streamblur = streamblur_app
         
+        # Rest stays the same...
         # Create menu
         self.create_menu()
         
@@ -34,6 +35,10 @@ class TrayApplication(QSystemTrayIcon):
         
         # Connect signals
         self.activated.connect(self.on_tray_activated)
+        
+        # Show notification
+        self.showMessage("StreamBlur", "StreamBlur is running! Right-click tray icon for menu.", 
+                        QSystemTrayIcon.MessageIcon.Information, 3000)
         
         print("✅ System Tray initialized")
     
@@ -73,6 +78,7 @@ class TrayApplication(QSystemTrayIcon):
         # OCR toggle
         self.ocr_action = QAction("Enable OCR Detection", menu)
         self.ocr_action.setCheckable(True)
+        self.ocr_action.setChecked(True)  # Default on
         self.ocr_action.triggered.connect(self.toggle_ocr)
         menu.addAction(self.ocr_action)
         
@@ -81,6 +87,12 @@ class TrayApplication(QSystemTrayIcon):
         self.vcam_action.setCheckable(True)
         self.vcam_action.triggered.connect(self.toggle_vcam)
         menu.addAction(self.vcam_action)
+        
+        # Preview Window toggle
+        self.preview_action = QAction("Show Preview Window", menu)
+        self.preview_action.setCheckable(True)
+        self.preview_action.triggered.connect(self.toggle_preview)
+        menu.addAction(self.preview_action)
         
         menu.addSeparator()
         
@@ -112,6 +124,7 @@ class TrayApplication(QSystemTrayIcon):
         
         self.ocr_action.setChecked(self.streamblur.ocr_enabled)
         self.vcam_action.setChecked(self.streamblur.vcam_enabled)
+        self.preview_action.setChecked(self.streamblur.show_preview)
     
     def set_blur_mode(self, mode):
         """Set blur mode"""
@@ -136,15 +149,22 @@ class TrayApplication(QSystemTrayIcon):
         self.showMessage("StreamBlur", f"Virtual Camera {status}", 
                         QSystemTrayIcon.MessageIcon.Information, 2000)
     
+    def toggle_preview(self):
+        """Toggle preview window"""
+        self.streamblur.toggle_preview()
+        self.update_menu_state()
+        status = "shown" if self.streamblur.show_preview else "hidden"
+        self.showMessage("StreamBlur", f"Preview window {status}", 
+                        QSystemTrayIcon.MessageIcon.Information, 2000)
+    
     def show_settings(self):
         """Show settings dialog"""
         dialog = SettingsDialog(self.streamblur)
-        dialog.exec()
+        dialog.show()  # Use show() instead of exec()
     
     def show_stats(self):
         """Show statistics"""
-        stats = f"""
-StreamBlur Statistics
+        stats = f"""StreamBlur Statistics
 
 Total Frames: {self.streamblur.total_frames}
 Total Detections: {self.streamblur.total_detections}
@@ -176,9 +196,10 @@ Virtual Camera: {'ON' if self.streamblur.vcam_enabled else 'OFF'}
 class SettingsDialog(QWidget):
     """Settings dialog window"""
     
-    def __init__(self, streamblur_app):
+    def __init__(self, streamblur_app, qt_app):
         super().__init__()
         self.streamblur = streamblur_app
+        self.qt_app = qt_app
         self.init_ui()
     
     def init_ui(self):
@@ -246,8 +267,7 @@ class SettingsDialog(QWidget):
         
         # Statistics
         layout.addWidget(QLabel("\n📊 Statistics:"))
-        stats_text = f"""
-Frames Processed: {self.streamblur.total_frames}
+        stats_text = f"""Frames Processed: {self.streamblur.total_frames}
 Detections: {self.streamblur.total_detections}
 Current FPS: {self.streamblur.capturer.get_fps():.1f}
         """
@@ -279,12 +299,9 @@ Current FPS: {self.streamblur.capturer.get_fps():.1f}
     
     def on_ocr_changed(self, state):
         """Handle OCR toggle"""
-        if state == Qt.CheckState.Checked.value:
-            if not self.streamblur.ocr_enabled:
-                self.streamblur.toggle_ocr()
-        else:
-            if self.streamblur.ocr_enabled:
-                self.streamblur.toggle_ocr()
+        should_be_on = (state == Qt.CheckState.Checked.value)
+        if should_be_on != self.streamblur.ocr_enabled:
+            self.streamblur.toggle_ocr()
     
     def on_vcam_changed(self, state):
         """Handle virtual camera toggle"""

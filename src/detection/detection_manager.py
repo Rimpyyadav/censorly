@@ -12,10 +12,20 @@ from .pattern_matcher import PatternMatcher
 class DetectionManager:
     """Manages detection of sensitive information"""
     
-    def __init__(self):
-        self.ocr = OCREngine(confidence_threshold=60)
+    def __init__(self, confidence_threshold=40):
+        """
+        Initialize detection manager
+        
+        Args:
+            confidence_threshold: Minimum OCR confidence (0-100)
+                                  Lower = more detections (but more errors)
+                                  Higher = fewer detections (but more accurate)
+                                  Default: 40 (good balance for screen text)
+        """
+        self.ocr = OCREngine(confidence_threshold=confidence_threshold)
         self.pattern_matcher = PatternMatcher(
-            enabled_patterns=['email', 'phone', 'credit_card', 'ip_address']
+            enabled_patterns=['email', 'phone', 'credit_card', 'ip_address', 
+                            'account_number', 'api_key']
         )
         
         # Cache
@@ -23,7 +33,7 @@ class DetectionManager:
         self.last_sensitive_regions = []
         self.last_detections = []
         
-        print("✅ Detection Manager initialized")
+        print(f"✅ Detection Manager initialized (confidence: {confidence_threshold}%)")
     
     def detect_sensitive_regions(self, frame) -> List[Tuple[int, int, int, int]]:
         """

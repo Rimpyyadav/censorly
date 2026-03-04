@@ -4,6 +4,10 @@ Day 9-10: System Tray UI
 """
 
 import sys
+import os
+
+# Suppress Qt DPI warning
+os.environ['QT_ENABLE_HIGHDPI_SCALING'] = '0'
 
 # Add src to path
 sys.path.insert(0, 'src')
@@ -31,7 +35,7 @@ class StreamBlurApp:
         
         # Initialize components
         self.capturer = ScreenCapture(monitor_index=1, target_fps=30)
-        self.detector = DetectionManager()
+        self.detector = DetectionManager(confidence_threshold=40)
         self.renderer = BlurRenderer(blur_strength=7)
         
         # Virtual camera
@@ -39,11 +43,11 @@ class StreamBlurApp:
         self.vcam = VirtualCamera(width=width, height=height, fps=30)
         
         # Settings
-        self.blur_mode = "regions"  # Default to smart mode
-        self.ocr_enabled = True      # Default OCR on
+        self.blur_mode = "regions"
+        self.ocr_enabled = True
         self.vcam_enabled = False
         self.show_detection_boxes = False
-        self.show_preview = True
+        self.show_preview = False
         self.running = True
         
         # Performance
@@ -131,9 +135,11 @@ class StreamBlurApp:
         if self.vcam_enabled:
             self.vcam.stop()
             self.vcam_enabled = False
+            print("📹 Virtual Camera: OFF")
         else:
             if self.vcam.start():
                 self.vcam_enabled = True
+                print("📹 Virtual Camera: ON")
     
     def toggle_preview(self):
         """Toggle preview"""
@@ -141,6 +147,7 @@ class StreamBlurApp:
         if not self.show_preview:
             import cv2
             cv2.destroyAllWindows()
+        print(f"🖼️ Preview: {'ON' if self.show_preview else 'OFF'}")
     
     def stop(self):
         """Stop application"""
@@ -159,16 +166,22 @@ class StreamBlurApp:
 
 
 if __name__ == "__main__":
-    # Create StreamBlur instance
+    # Import Qt first
+    from PyQt6.QtWidgets import QApplication
+    
+    # Create Qt application ONCE
+    qt_app = QApplication(sys.argv)
+    
+    print("🔧 Creating StreamBlur...")
     app = StreamBlurApp()
     
-    # Create app runner
+    print("🔧 Starting processing thread...")
     runner = AppRunner(app)
     runner.start()
     
-    # Create and run tray application
+    print("🔧 Creating system tray...")
     from ui.tray_app import TrayApplication
-    tray = TrayApplication(app)
+    tray = TrayApplication(app, qt_app)
     
-    # Run Qt event loop
-    sys.exit(tray.run())
+    print("🔧 Entering Qt event loop (app will stay running)...\n")
+    sys.exit(qt_app.exec())
