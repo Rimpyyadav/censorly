@@ -166,22 +166,44 @@ class StreamBlurApp:
 
 
 if __name__ == "__main__":
-    # Import Qt first
-    from PyQt6.QtWidgets import QApplication
-    
-    # Create Qt application ONCE
-    qt_app = QApplication(sys.argv)
-    
-    print("🔧 Creating StreamBlur...")
-    app = StreamBlurApp()
-    
-    print("🔧 Starting processing thread...")
-    runner = AppRunner(app)
-    runner.start()
-    
-    print("🔧 Creating system tray...")
-    from ui.tray_app import TrayApplication
-    tray = TrayApplication(app, qt_app)
-    
-    print("🔧 Entering Qt event loop (app will stay running)...\n")
-    sys.exit(qt_app.exec())
+    try:
+        # Import Qt first
+        from PyQt6.QtWidgets import QApplication
+        
+        # Create Qt application ONCE
+        qt_app = QApplication(sys.argv)
+        
+        print("🔧 Creating StreamBlur...")
+        app = StreamBlurApp()
+        
+        print("🔧 Starting processing thread...")
+        runner = AppRunner(app)
+        runner.start()
+        
+        print("🔧 Creating system tray...")
+        from ui.tray_app import TrayApplication
+        tray = TrayApplication(app, qt_app)
+        
+        # Force the icon to be visible
+        tray.show()
+        
+        print("🔧 Qt event loop starting...")
+        print("✅ StreamBlur is now running! Check your system tray.")
+        print("   Press Ctrl+C in this window to exit.\n")
+        
+        # This BLOCKS until app quits
+        exit_code = qt_app.exec()
+        
+        print(f"\n🛑 Qt event loop exited with code: {exit_code}")
+        sys.exit(exit_code)
+        
+    except KeyboardInterrupt:
+        print("\n\n⚠️ Keyboard interrupt - shutting down...")
+        app.stop()
+        sys.exit(0)
+    except Exception as e:
+        print(f"\n❌ Fatal error: {e}")
+        import traceback
+        traceback.print_exc()
+        input("\nPress Enter to exit...")
+        sys.exit(1)
