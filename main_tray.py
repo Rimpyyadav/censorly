@@ -27,41 +27,48 @@ except ImportError:
 
 
 class StreamBlurApp:
-    """StreamBlur Application - For Tray UI"""
+   def __init__(self):
+    print("\n🚀 Initializing StreamBlur with System Tray UI...")
+    print("━" * 60)
     
-    def __init__(self):
-        print("\n🚀 Initializing StreamBlur with System Tray UI...")
-        print("━" * 60)
-        
-        # Initialize components
-        self.capturer = ScreenCapture(monitor_index=1, target_fps=30)
-        self.detector = DetectionManager(confidence_threshold=40)
-        self.renderer = BlurRenderer(blur_strength=7)
-        
-        # Virtual camera
-        width, height = self.capturer.get_resolution()
-        self.vcam = VirtualCamera(width=width, height=height, fps=30)
-        
-        # Settings
-        self.blur_mode = "regions"
-        self.ocr_enabled = True
-        self.vcam_enabled = False
-        self.show_detection_boxes = False
-        self.show_preview = False
-        self.running = True
-        
-        # Performance
-        self.frame_count = 0
-        self.ocr_interval = 2
-        self.sensitive_regions = []
-        
-        # Stats
-        self.total_frames = 0
-        self.total_detections = 0
-        
-        print("✅ StreamBlur initialized!")
-        print("   Look for the blue icon in your system tray →")
-        print("━" * 60 + "\n")
+    # Load configuration FIRST
+    from config.config_manager import get_config_manager
+    self.config = get_config_manager()
+    
+    # Initialize components with config values
+    target_fps = self.config.get('performance.target_fps', 30)
+    self.capturer = ScreenCapture(monitor_index=1, target_fps=target_fps)
+    
+    confidence = self.config.get('detection.confidence_threshold', 40)
+    self.detector = DetectionManager(confidence_threshold=confidence)
+    
+    blur_strength = self.config.get('blur.strength', 7)
+    self.renderer = BlurRenderer(blur_strength=blur_strength)
+    
+    # Virtual camera
+    width, height = self.capturer.get_resolution()
+    self.vcam = VirtualCamera(width=width, height=height, fps=target_fps)
+    
+    # Settings from config
+    self.blur_mode = self.config.get('blur.mode', 'regions')
+    self.ocr_enabled = self.config.get('detection.ocr_enabled', True)
+    self.vcam_enabled = self.config.get('output.virtual_camera_enabled', False)
+    self.show_detection_boxes = self.config.get('output.show_detection_boxes', False)
+    self.show_preview = self.config.get('output.show_preview', False)
+    self.running = True
+    
+    # Performance
+    self.frame_count = 0
+    self.ocr_interval = self.config.get('detection.ocr_interval', 2)
+    self.sensitive_regions = []
+    
+    # Stats
+    self.total_frames = 0
+    self.total_detections = 0
+    
+    print("✅ StreamBlur initialized!")
+    print("   Look for the blue icon in your system tray →")
+    print("━" * 60 + "\n")
     
     def process_detection(self, frame):
         """Run detection"""
@@ -114,24 +121,27 @@ class StreamBlurApp:
         
         return frame
     
-    def set_blur_mode(self, mode):
-        """Set blur mode"""
-        self.blur_mode = mode
-        print(f"🔵 Blur Mode: {mode.upper()}")
+   def set_blur_mode(self, mode):
+    """Set blur mode"""
+    self.blur_mode = mode
+    self.config.set('blur.mode', mode)  # ← Save to config
+    print(f"🔵 Blur Mode: {mode.upper()}")
+
+def toggle_ocr(self):
+    """Toggle OCR"""
+    self.ocr_enabled = not self.ocr_enabled
+    if not self.ocr_enabled:
+        self.sensitive_regions = []
+    self.config.set('detection.ocr_enabled', self.ocr_enabled)  # ← Save
+    print(f"📝 OCR: {'ON' if self.ocr_enabled else 'OFF'}")
+
+def toggle_vcam(self):
+    """Toggle virtual camera"""
+    if not VIRTUAL_CAM_AVAILABLE:
+        print("❌ Virtual camera not available")
+        return
     
-    def toggle_ocr(self):
-        """Toggle OCR"""
-        self.ocr_enabled = not self.ocr_enabled
-        if not self.ocr_enabled:
-            self.sensitive_regions = []
-        print(f"📝 OCR: {'ON' if self.ocr_enabled else 'OFF'}")
-    
-    def toggle_vcam(self):
-        """Toggle virtual camera"""
-        if not VIRTUAL_CAM_AVAILABLE:
-            print("❌ Virtual camera not available")
-            return
-        
+    try:
         if self.vcam_enabled:
             self.vcam.stop()
             self.vcam_enabled = False
@@ -140,15 +150,23 @@ class StreamBlurApp:
             if self.vcam.start():
                 self.vcam_enabled = True
                 print("📹 Virtual Camera: ON")
-    
-    def toggle_preview(self):
-        """Toggle preview"""
-        self.show_preview = not self.show_preview
-        if not self.show_preview:
-            import cv2
-            cv2.destroyAllWindows()
-        print(f"🖼️ Preview: {'ON' if self.show_preview else 'OFF'}")
-    
+            else:
+                print("❌ Failed to start virtual camera")
+        
+        self.config.set('output.virtual_camera_enabled', self.vcam_enabled)  # ← Save
+        
+    except Exception as e:
+        print(f"❌ Virtual camera error: {e}")
+        self.vcam_enabled = False
+
+def toggle_preview(self):
+    """Toggle preview"""
+    self.show_preview = not self.show_preview
+    if not self.show_preview:
+        import cv2
+        cv2.destroyAllWindows()
+    self.config.set('output.show_preview', self.show_preview)  # ← Save
+    print(f"🖼️ Preview: {'ON' if self.show_preview else 'OFF'}")
     def stop(self):
         """Stop application"""
         print("\n🛑 Stopping StreamBlur...")

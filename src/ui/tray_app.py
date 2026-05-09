@@ -293,6 +293,7 @@ OCR Confidence: 40%
         """Handle strength change"""
         self.strength_label.setText(f"{value}/10")
         self.streamblur.renderer.set_blur_strength(value)
+        self.streamblur.config.set('blur.strength', value)
     
     def on_ocr_changed(self, state):
         """Handle OCR toggle"""
